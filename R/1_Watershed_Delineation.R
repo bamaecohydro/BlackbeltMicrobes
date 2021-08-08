@@ -32,13 +32,14 @@ output_dir<-"data//III_output//"
 dem<-raster(paste0(data_dir,"ned30m32087.tif"))
 crop<-st_read(paste0(data_dir,"crop.shp"))
 lulc<-raster(paste0(data_dir,"nlcd_al_utm16.tif"))
-pnts<-tibble(
-  y=c(32.582970,32.619280,32.577040), 
-  x=c(-87.520600, -87.511670, -87.531086)) %>% 
-  st_as_sf(., 
-           coords = c("x", "y"), 
-           crs = '+proj=longlat +datum=WGS84 +no_defs') %>% 
-  st_transform(., crs = st_crs(dem@crs))
+pnts<-st_read(paste0(scratch_dir, "pnts.shp"))
+  # tibble(
+  #   y=c(32.582970,32.619280,32.577040), 
+  #   x=c(-87.520600, -87.511670, -87.531086)) %>% 
+  # st_as_sf(., 
+  #          coords = c("x", "y"), 
+  #          crs = '+proj=longlat +datum=WGS84 +no_defs') %>% 
+  # st_transform(., crs = st_crs(dem@crs))
 
 #Crop raster data to area of interest
 dem<-crop(dem, crop)
@@ -47,7 +48,6 @@ lulc<-crop(lulc, crop)
 #Export intermediate files
 writeRaster(dem, paste0(scratch_dir,"dem.tif"))
 writeRaster(lulc, paste0(scratch_dir,"lulc.tif"))
-st_write(pnts, paste0(scratch_dir,"pnts.shp"))
 
 #Plot for Funzies
 mapview(dem)+mapview(pnts)
@@ -173,12 +173,26 @@ sheds
 shed_1<-fun("shed_1", scratch_dir, dem, pnts[1,])
 shed_2<-fun("shed_2", scratch_dir, dem, pnts[2,])
 shed_3<-fun("shed_3", scratch_dir, dem, pnts[3,])
+shed_4<-fun("shed_4", scratch_dir, dem, pnts[4,])
+shed_5<-fun("shed_5", scratch_dir, dem, pnts[5,])
 
 #Combine outputs
-sheds<-bind_rows(shed_1, shed_2, shed_3)
+sheds<-bind_rows(shed_1, shed_2, shed_3, shed_4, shed_5)
 
 #Collect lulc data
 lulc_area<-sheds %>% st_drop_geometry()
+write_csv(lulc_area, paste0(output_dir,"lulc_area.csv"))
+
+#Export shapefiles for mapping in ArcGIS
+st_write(shed_3, paste0(output_dir,"shed.shp"))
+st_write(shed_2, paste0(output_dir,"shed_ag.shp"))
+st_write(shed_4, paste0(output_dir,"shed_forested.shp"))
+
+#Export stream 
+streams<-raster(paste0(scratch_dir,"stream.tif"))
+streams<-crop(streams, shed_3)
+streams<-mask(streams, shed_3)
+writeRaster(streams, paste0(output_dir,"streams.tif"))
 
 #Create map
 mapviewOptions(fgb = FALSE)
@@ -190,7 +204,3 @@ m
 
 #export map
 mapshot(m, "docs//sheds.html", selfcontained=T)
-
-
-
-
